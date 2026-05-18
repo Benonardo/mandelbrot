@@ -6,6 +6,8 @@ use std::{
     ptr::NonNull,
 };
 
+use crate::math::Vec2;
+
 static XDG_SHELL_TYPES: [Option<&'static WlInterface>; 26] = [
     None,
     None,
@@ -756,8 +758,7 @@ const unsafe extern "C" fn xdg_toplevel_listener_wm_capabilities_listener(
 
 #[derive(Default, Debug, Clone, Copy)]
 struct PointerState {
-    x: f64,
-    y: f64,
+    position: Vec2,
     total_scroll: f64,
     left: bool,
 }
@@ -786,8 +787,7 @@ unsafe extern "C" fn pointer_listener_motion_listener(
 ) {
     let pointer_state = unsafe { &*data.cast::<Cell<PointerState>>() };
     pointer_state.set(PointerState {
-        x: surface_x.to_f64(),
-        y: surface_y.to_f64(),
+        position: Vec2::new(surface_x.to_f64() as f32, surface_y.to_f64() as f32),
         ..pointer_state.get()
     });
 }
@@ -867,6 +867,7 @@ const unsafe extern "C" fn pointer_listener_axis_relative_direction_listener(
 
 #[derive(Default, Debug, Clone, Copy)]
 struct KeyboardState {
+    enter: bool,
     up: bool,
     down: bool,
 }
@@ -903,6 +904,10 @@ unsafe extern "C" fn keyboard_listener_key_listener(
 ) {
     let keyboard_state = unsafe { &*data.cast::<Cell<KeyboardState>>() };
     keyboard_state.set(match key {
+        28 => KeyboardState {
+            enter: state > 0,
+            ..keyboard_state.get()
+        },
         103 => KeyboardState {
             up: state > 0,
             ..keyboard_state.get()
@@ -1250,9 +1255,8 @@ impl Window {
         }
     }
 
-    pub fn pointer_coordinates(&self) -> (f64, f64) {
-        let pointer_state = self.pointer_state.get();
-        (pointer_state.x, pointer_state.y)
+    pub fn pointer_position(&self) -> Vec2 {
+        self.pointer_state.get().position
     }
 
     pub fn total_scroll(&self) -> f64 {
@@ -1261,6 +1265,10 @@ impl Window {
 
     pub fn left_button(&self) -> bool {
         self.pointer_state.get().left
+    }
+
+    pub fn enter_key(&self) -> bool {
+        self.keyboard_state.get().enter
     }
 
     pub fn up_key(&self) -> bool {

@@ -5,7 +5,7 @@ use wayland as implementation;
 
 use std::{error::Error, fmt::Display};
 
-use crate::gl::GL;
+use crate::{gl::GL, math::Vec2};
 
 pub struct Window(implementation::Window);
 
@@ -30,8 +30,8 @@ impl Window {
         self.0.check_events().map_err(EventCheckError)
     }
 
-    pub fn pointer_coordinates(&self) -> (f64, f64) {
-        self.0.pointer_coordinates()
+    pub fn pointer_position(&self) -> Vec2 {
+        self.0.pointer_position()
     }
 
     pub fn total_scroll(&self) -> f64 {
@@ -40,6 +40,10 @@ impl Window {
 
     pub fn left_button(&self) -> bool {
         self.0.left_button()
+    }
+
+    pub fn enter_key(&self) -> bool {
+        self.0.enter_key()
     }
 
     pub fn up_key(&self) -> bool {

@@ -3,6 +3,8 @@ use std::{
     marker::PhantomData,
 };
 
+use crate::math::{Vec2, Vec2I};
+
 macro_rules! gl {
     ($($name:expr => $safety:tt $function:ident($($param:ident: $type:ty),*) $(-> $return:ty)?)*) => {
         #[derive(Debug)]
@@ -72,13 +74,14 @@ gl! {
     c"glCreateProgram" => safe create_program() -> u32
     c"glAttachShader" => safe attach_shader(program: u32, shader: u32)
     c"glLinkProgram" => safe link_program(program: u32)
+    c"glDeleteShader" => safe delete_shader(shader: u32)
     c"glUseProgram" => safe use_program(program: u32)
 
     c"glGetUniformLocation" => unsafe get_uniform_location_unchecked(program: u32, name: *const c_char) -> i32
     c"glUniform1f" => safe uniform_1f(location: i32, v0: f32)
-    c"glUniform2f" => safe uniform_2f(location: i32, v0: f32, v1: f32)
+    c"glUniform2fv" => unsafe uniform_2fv_unchecked(location: i32, count: u32, value: *const f32)
     c"glUniform1i" => safe uniform_1i(location: i32, v0: i32)
-    c"glUniform2i" => safe uniform_2i(location: i32, v0: i32, v1: i32)
+    c"glUniform2iv" => unsafe uniform_2iv_unchecked(location: i32, count: u32, value: *const i32)
 
     c"glBindVertexArray" => safe bind_vertex_array(array: u32)
     c"glDrawElements" => unsafe draw_elements_unchecked(mode: u32, count: u32, r#type: u32, indices: *const c_void)
@@ -130,12 +133,12 @@ impl GL {
     }
 
     #[inline]
-    pub fn get_viewport(&self) -> (i32, i32) {
+    pub fn get_viewport(&self) -> Vec2I {
         let mut viewport = [0; 4];
         unsafe {
             self.get_integer_v(Self::VIEWPORT, viewport.as_mut_ptr());
         }
-        (viewport[2], viewport[3])
+        Vec2I::new(viewport[2], viewport[3])
     }
 
     #[inline]
@@ -183,6 +186,20 @@ impl GL {
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         unsafe {
             self.get_uniform_location_unchecked(program, name.as_ptr())
+        }
+    }
+
+    #[inline]
+    pub fn uniform_2fv(&self, location: i32, value: Vec2) {
+        unsafe {
+            self.uniform_2fv_unchecked(location, 1, (&raw const value).cast());
+        }
+    }
+
+    #[inline]
+    pub fn uniform_2iv(&self, location: i32, value: Vec2I) {
+        unsafe {
+            self.uniform_2iv_unchecked(location, 1, (&raw const value).cast());
         }
     }
 
