@@ -32,7 +32,7 @@ struct GenericProgram {
     viewport_uniform: i32,
     zoom_uniform: i32,
     center_uniform: i32,
-    quality_uniform: i32,
+    iterations_uniform: i32,
 }
 
 impl GenericProgram {
@@ -50,14 +50,14 @@ impl GenericProgram {
         let viewport_uniform = gl.get_uniform_location(program, c"viewport");
         let zoom_uniform = gl.get_uniform_location(program, c"zoom");
         let center_uniform = gl.get_uniform_location(program, c"center");
-        let quality_uniform = gl.get_uniform_location(program, c"quality");
+        let iterations_uniform = gl.get_uniform_location(program, c"iterations");
 
         Self {
             program,
             viewport_uniform,
             zoom_uniform,
             center_uniform,
-            quality_uniform,
+            iterations_uniform,
         }
     }
 
@@ -77,8 +77,8 @@ impl GenericProgram {
         gl.uniform_2fv(self.center_uniform, value);
     }
 
-    fn set_quality(&self, gl: &GL, value: i32) {
-        gl.uniform_1i(self.quality_uniform, value);
+    fn set_iterations(&self, gl: &GL, value: i32) {
+        gl.uniform_1i(self.iterations_uniform, value);
     }
 }
 
@@ -144,7 +144,7 @@ fn main() {
     let mut julia = false;
     let mut old_pointer = window.pointer_position();
     let mut center = Vec2::default();
-    let mut quality: u8 = 1;
+    let mut quality: u8 = 5;
     loop {
         let viewport = gl.get_viewport();
         let pointer = window.pointer_position();
@@ -188,7 +188,7 @@ fn main() {
         current_program.set_viewport(&gl, viewport);
         current_program.set_zoom(&gl, zoom);
         current_program.set_center(&gl, center);
-        current_program.set_quality(&gl, i32::from(quality));
+        current_program.set_iterations(&gl, 1 << quality);
         gl.draw_elements(&ELEMENTS);
 
         window.swap_buffers().unwrap();
