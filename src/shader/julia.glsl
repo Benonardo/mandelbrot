@@ -1,8 +1,7 @@
 #version 330 core
 
-uniform ivec2 viewport;
-uniform float zoom;
-uniform vec2 center;
+uniform vec2 scaling;
+uniform vec2 offset;
 uniform int iterations;
 uniform vec2 parameter;
 
@@ -14,7 +13,7 @@ out vec4 outColor;
 
 void main()
 {
-    vec2 z = vec2((2.0 * gl_FragCoord.x / float(viewport.x) - 1.0) / zoom + center.x, (2.0 * gl_FragCoord.y / float(viewport.y) - 1.0) / zoom + center.y);
+    vec2 z = gl_FragCoord.xy * scaling + offset;
     for (int i = 0; i < iterations; i++) {
         z = complex_square(z) + parameter;
         if (dot(z, z) > 4) {

@@ -11,7 +11,7 @@ mod window;
 
 use crate::{
     gl::{GL, Triangle},
-    math::{Vec2, Vec2I},
+    math::Vec2,
     window::Window,
 };
 
@@ -29,9 +29,8 @@ const JULIA_SHADER_SOURCE: &str = include_str!("shader/julia.glsl");
 struct GenericProgram {
     program: u32,
 
-    viewport_uniform: i32,
-    zoom_uniform: i32,
-    center_uniform: i32,
+    scaling_uniform: i32,
+    offset_uniform: i32,
     iterations_uniform: i32,
 }
 
@@ -47,16 +46,14 @@ impl GenericProgram {
         gl.link_program(program);
         gl.delete_shader(shader);
 
-        let viewport_uniform = gl.get_uniform_location(program, c"viewport");
-        let zoom_uniform = gl.get_uniform_location(program, c"zoom");
-        let center_uniform = gl.get_uniform_location(program, c"center");
+        let scaling_uniform = gl.get_uniform_location(program, c"scaling");
+        let offset_uniform = gl.get_uniform_location(program, c"offset");
         let iterations_uniform = gl.get_uniform_location(program, c"iterations");
 
         Self {
             program,
-            viewport_uniform,
-            zoom_uniform,
-            center_uniform,
+            scaling_uniform,
+            offset_uniform,
             iterations_uniform,
         }
     }
@@ -65,16 +62,12 @@ impl GenericProgram {
         gl.use_program(self.program);
     }
 
-    fn set_viewport(&self, gl: &GL, value: Vec2I) {
-        gl.uniform_2iv(self.viewport_uniform, value);
+    fn set_scaling(&self, gl: &GL, value: Vec2) {
+        gl.uniform_2fv(self.scaling_uniform, value);
     }
 
-    fn set_zoom(&self, gl: &GL, value: f32) {
-        gl.uniform_1f(self.zoom_uniform, value);
-    }
-
-    fn set_center(&self, gl: &GL, value: Vec2) {
-        gl.uniform_2fv(self.center_uniform, value);
+    fn set_offset(&self, gl: &GL, value: Vec2) {
+        gl.uniform_2fv(self.offset_uniform, value);
     }
 
     fn set_iterations(&self, gl: &GL, value: i32) {
@@ -185,9 +178,14 @@ fn main() {
         }
 
         current_program.r#use(&gl);
-        current_program.set_viewport(&gl, viewport);
-        current_program.set_zoom(&gl, zoom);
-        current_program.set_center(&gl, center);
+        current_program.set_scaling(
+            &gl,
+            Vec2::new(
+                2.0 / viewport.x as f32 / zoom,
+                2.0 / viewport.y as f32 / zoom,
+            ),
+        );
+        current_program.set_offset(&gl, Vec2::new(center.x - 1.0 / zoom, center.y - 1.0 / zoom));
         current_program.set_iterations(&gl, 1 << quality);
         gl.draw_elements(&ELEMENTS);
 
