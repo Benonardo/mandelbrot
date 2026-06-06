@@ -3,6 +3,11 @@ pub mod wayland;
 #[cfg(target_os = "linux")]
 use wayland as implementation;
 
+#[cfg(target_os = "windows")]
+pub mod win32;
+#[cfg(target_os = "windows")]
+use win32 as implementation;
+
 use std::{error::Error, fmt::Display};
 
 use crate::{gl::GL, math::Vec2};
