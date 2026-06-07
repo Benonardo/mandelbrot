@@ -15,7 +15,7 @@ use crate::{
     window::Window,
 };
 
-static VERTICES: [Vec2; 4] = [
+static VERTICES: [Vec2<f32>; 4] = [
     Vec2 { x: 1.0, y: 1.0 },
     Vec2 { x: 1.0, y: -1.0 },
     Vec2 { x: -1.0, y: -1.0 },
@@ -62,11 +62,11 @@ impl GenericProgram {
         gl.use_program(self.program);
     }
 
-    fn set_scaling(&self, gl: &GL, value: Vec2) {
+    fn set_scaling(&self, gl: &GL, value: Vec2<f32>) {
         gl.uniform_2fv(self.scaling_uniform, value);
     }
 
-    fn set_offset(&self, gl: &GL, value: Vec2) {
+    fn set_offset(&self, gl: &GL, value: Vec2<f32>) {
         gl.uniform_2fv(self.offset_uniform, value);
     }
 
@@ -93,7 +93,7 @@ impl JuliaProgram {
         }
     }
 
-    fn set_parameter(&self, gl: &GL, value: Vec2) {
+    fn set_parameter(&self, gl: &GL, value: Vec2<f32>) {
         gl.uniform_2fv(self.parameter_uniform, value);
     }
 }
@@ -109,7 +109,7 @@ fn main() {
     gl.named_buffer_data(vbo, &VERTICES, GL::STATIC_DRAW);
     let vao = gl.create_vertex_array();
     unsafe {
-        gl.vertex_array_vertex_buffer(vao, 0, vbo, 0, std::mem::size_of::<Vec2>() as u32);
+        gl.vertex_array_vertex_buffer(vao, 0, vbo, 0, std::mem::size_of::<Vec2<f32>>() as u32);
     }
     gl.enable_vertex_array_attrib(vao, 0);
     gl.vertex_array_attrib_format(vao, 0, 2, GL::FLOAT, false, 0);

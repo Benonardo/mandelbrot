@@ -35,7 +35,7 @@ impl Window {
         self.0.check_events().map_err(EventCheckError)
     }
 
-    pub fn pointer_position(&self) -> Vec2 {
+    pub fn pointer_position(&self) -> Vec2<f32> {
         self.0.pointer_position()
     }
 

@@ -758,7 +758,7 @@ const unsafe extern "C" fn xdg_toplevel_listener_wm_capabilities_listener(
 
 #[derive(Default, Debug, Clone, Copy)]
 struct PointerState {
-    position: Vec2,
+    position: Vec2<f32>,
     total_scroll: f64,
     left: bool,
 }
@@ -1255,7 +1255,7 @@ impl Window {
         }
     }
 
-    pub fn pointer_position(&self) -> Vec2 {
+    pub fn pointer_position(&self) -> Vec2<f32> {
         self.pointer_state.get().position
     }
 

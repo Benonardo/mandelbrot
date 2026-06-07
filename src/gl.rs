@@ -3,7 +3,7 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::math::{Vec2, Vec2I};
+use crate::math::Vec2;
 
 macro_rules! gl {
     ($($name:expr => $safety:tt $function:ident($($param:ident: $type:ty),*) $(-> $return:ty)?)*) => {
@@ -131,12 +131,12 @@ impl GL {
     }
 
     #[inline]
-    pub fn get_viewport(&self) -> Vec2I {
+    pub fn get_viewport(&self) -> Vec2<i32> {
         let mut viewport = [0; 4];
         unsafe {
             self.get_integer_v(Self::VIEWPORT, viewport.as_mut_ptr());
         }
-        Vec2I::new(viewport[2], viewport[3])
+        Vec2::new(viewport[2], viewport[3])
     }
 
     #[inline]
@@ -188,7 +188,7 @@ impl GL {
     }
 
     #[inline]
-    pub fn uniform_2fv(&self, location: i32, value: Vec2) {
+    pub fn uniform_2fv(&self, location: i32, value: Vec2<f32>) {
         unsafe {
             self.uniform_2fv_unchecked(location, 1, (&raw const value).cast());
         }

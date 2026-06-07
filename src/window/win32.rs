@@ -74,7 +74,7 @@ struct Msg {
     lprivate: u32,
 }
 
-#[link(name = "Kernel32")]
+#[link(name = "kernel32")]
 unsafe extern "system" {
     #[link_name = "GetModuleHandleA"]
     fn get_module_handle(module_name: *const c_char) -> Handle;
@@ -86,7 +86,7 @@ unsafe extern "system" {
     fn get_proc_address(module: Handle, proc_name: *const c_char) -> *mut c_void;
 }
 
-#[link(name = "User32")]
+#[link(name = "user32")]
 unsafe extern "system" {
     #[link_name = "RegisterClassA"]
     fn register_class(wnd_class: *const WndClass) -> Atom;
@@ -126,9 +126,15 @@ unsafe extern "system" {
 
     #[link_name = "DispatchMessageA"]
     fn dispatch_message(msg: *mut Msg) -> usize;
+
+    #[link_name = "GetWindowLongA"]
+    fn get_window_long(wnd: Handle, index: c_int) -> c_long;
+
+    #[link_name = "SetWindowLongA"]
+    fn set_window_long(wnd: Handle, index: c_int, new_long: c_long) -> c_long;
 }
 
-#[link(name = "GDI32")]
+#[link(name = "gdi32")]
 unsafe extern "system" {
     #[link_name = "ChoosePixelFormat"]
     fn choose_pixel_format(dc: Handle, pfd: *const PixelFormatDescriptor) -> c_int;
@@ -140,7 +146,7 @@ unsafe extern "system" {
     fn swap_buffers(dc: Handle) -> c_int;
 }
 
-#[link(name = "Opengl32")]
+#[link(name = "opengl32")]
 unsafe extern "system" {
     #[link_name = "wglCreateContext"]
     fn wgl_create_context(dc: Handle) -> Handle;
@@ -150,6 +156,9 @@ unsafe extern "system" {
 
     #[link_name = "wglGetProcAddress"]
     fn wgl_get_proc_address(name: *const c_char) -> *mut c_void;
+
+    #[link_name = "glViewport"]
+    safe fn gl_viewport(x: i32, y: i32, width: i32, height: i32);
 }
 
 static PIXEL_FORMAT: PixelFormatDescriptor = PixelFormatDescriptor {
@@ -181,13 +190,71 @@ static PIXEL_FORMAT: PixelFormatDescriptor = PixelFormatDescriptor {
     damage_mask: 0,
 };
 
+macro_rules! window_data {
+    (
+        struct $struct:ident {
+            $($field:ident: $type:ty [$set:ident]),*
+        }
+    ) => {
+        struct $struct {
+            $($field: $type),*
+        }
+
+        #[allow(unnecessary_transmutes)]
+        impl $struct {
+            $(
+                fn $field(wnd: Handle) -> $type {
+                    unsafe {
+                        std::mem::transmute::<c_long, $type>(get_window_long(
+                            wnd,
+                            std::mem::offset_of!($struct, $field) as i32,
+                        ))
+                    }
+                }
+
+                fn $set(wnd: Handle, $field: $type) {
+                    unsafe {
+                        set_window_long(wnd, std::mem::offset_of!($struct, $field) as i32, std::mem::transmute::<$type, c_long>($field));
+                    }
+                }
+            )*
+        }
+    };
+}
+
+window_data! {
+    struct WindowData {
+        pointer_position: Vec2<u16> [set_pointer_position],
+        scroll: f32 [set_scroll]
+    }
+}
+
 unsafe extern "system" fn wnd_proc(
     wnd: Handle,
     msg: c_uint,
     wparam: usize,
     lparam: usize,
 ) -> usize {
+    //println!("0x{msg:x}");
     match msg {
+        0x2 => std::process::exit(0),
+        0x5 => {
+            let width = (lparam & 0xFFFF) as u16;
+            let height = ((lparam >> 16) & 0xFFFF) as u16;
+            gl_viewport(0, 0, i32::from(width), i32::from(height));
+            0
+        }
+        0x200 if (wparam & 0x001 == 0x001) => {
+            let x = (lparam & 0xFFFF) as u16;
+            let y = ((lparam >> 16) & 0xFFFF) as u16;
+            WindowData::set_pointer_position(wnd, Vec2::new(x, y));
+            0
+        }
+        0x20A => {
+            let scroll = ((wparam >> 16) & 0xFFFF) as i16;
+            WindowData::set_scroll(wnd, WindowData::scroll(wnd) + f32::from(scroll) / 120.0);
+            0
+        }
         _ => unsafe { def_window_proc(wnd, msg, wparam, lparam) },
     }
 }
@@ -208,7 +275,7 @@ impl Window {
                 style: 0,
                 wnd_proc,
                 cb_cls_extra: 0,
-                cb_wnd_extra: 0,
+                cb_wnd_extra: std::mem::size_of::<WindowData>() as i32,
                 instance,
                 icon: Handle::default(),
                 cursor: Handle::default(),
@@ -258,10 +325,11 @@ impl Window {
     }
 
     pub fn swap_buffers(&self) -> Result<(), BufferSwapError> {
-        unsafe {
-            swap_buffers(self.dc);
+        if unsafe { swap_buffers(self.dc) } == 0 {
+            Err(BufferSwapError)
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     pub fn check_events(&self) -> Result<(), EventCheckError> {
@@ -273,16 +341,17 @@ impl Window {
         Ok(())
     }
 
-    pub fn pointer_position(&self) -> Vec2 {
-        Vec2::default()
+    pub fn pointer_position(&self) -> Vec2<f32> {
+        let position = WindowData::pointer_position(self.wnd);
+        Vec2::new(f32::from(position.x), f32::from(position.y))
     }
 
     pub fn total_scroll(&self) -> f64 {
-        f64::default()
+        f64::from(WindowData::scroll(self.wnd))
     }
 
     pub fn left_button(&self) -> bool {
-        bool::default()
+        true
     }
 
     pub fn enter_key(&self) -> bool {
@@ -310,11 +379,11 @@ impl Display for WindowCreateError {
 impl Error for WindowCreateError {}
 
 #[derive(Debug)]
-pub enum BufferSwapError {}
+pub struct BufferSwapError;
 
 impl Display for BufferSwapError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match *self {}
+        f.write_str("BufferSwap returned false")
     }
 }
 
