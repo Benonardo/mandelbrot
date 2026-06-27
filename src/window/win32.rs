@@ -253,7 +253,7 @@ unsafe extern "system" fn wnd_proc(
                 WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) | 0b100);
                 0
             }
-            0x27 => {
+            0x28 => {
                 WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) | 0b1000);
                 0
             }
@@ -268,7 +268,7 @@ unsafe extern "system" fn wnd_proc(
                 WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) & !0b100);
                 0
             }
-            0x27 => {
+            0x28 => {
                 WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) & !0b1000);
                 0
             }
