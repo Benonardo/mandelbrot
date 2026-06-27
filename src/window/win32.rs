@@ -224,6 +224,7 @@ macro_rules! window_data {
 
 window_data! {
     struct WindowData {
+        button_keys: u32 [set_button_keys],
         pointer_position: Vec2<u16> [set_pointer_position],
         scroll: f32 [set_scroll]
     }
@@ -235,7 +236,6 @@ unsafe extern "system" fn wnd_proc(
     wparam: usize,
     lparam: usize,
 ) -> usize {
-    //println!("0x{msg:x}");
     match msg {
         0x2 => std::process::exit(0),
         0x5 => {
@@ -244,10 +244,48 @@ unsafe extern "system" fn wnd_proc(
             gl_viewport(0, 0, i32::from(width), i32::from(height));
             0
         }
-        0x200 if (wparam & 0x001 == 0x001) => {
+        0x100 => match wparam {
+            0x0D => {
+                WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) | 0b10);
+                0
+            }
+            0x26 => {
+                WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) | 0b100);
+                0
+            }
+            0x27 => {
+                WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) | 0b1000);
+                0
+            }
+            _ => unsafe { def_window_proc(wnd, msg, wparam, lparam) },
+        },
+        0x101 => match wparam {
+            0x0D => {
+                WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) & !0b10);
+                0
+            }
+            0x26 => {
+                WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) & !0b100);
+                0
+            }
+            0x27 => {
+                WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) & !0b1000);
+                0
+            }
+            _ => unsafe { def_window_proc(wnd, msg, wparam, lparam) },
+        },
+        0x200 => {
             let x = (lparam & 0xFFFF) as u16;
             let y = ((lparam >> 16) & 0xFFFF) as u16;
             WindowData::set_pointer_position(wnd, Vec2::new(x, y));
+            0
+        }
+        0x201 => {
+            WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) | 0b1);
+            0
+        }
+        0x202 => {
+            WindowData::set_button_keys(wnd, WindowData::button_keys(wnd) & !0b1);
             0
         }
         0x20A => {
@@ -351,19 +389,19 @@ impl Window {
     }
 
     pub fn left_button(&self) -> bool {
-        true
+        WindowData::button_keys(self.wnd) & 0b1 != 0
     }
 
     pub fn enter_key(&self) -> bool {
-        bool::default()
+        WindowData::button_keys(self.wnd) & 0b10 != 0
     }
 
     pub fn up_key(&self) -> bool {
-        bool::default()
+        WindowData::button_keys(self.wnd) & 0b100 != 0
     }
 
     pub fn down_key(&self) -> bool {
-        bool::default()
+        WindowData::button_keys(self.wnd) & 0b1000 != 0
     }
 }
 
