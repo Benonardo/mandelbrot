@@ -10,10 +10,10 @@ use std::{
 use crate::math::Vec2;
 
 #[repr(transparent)]
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 struct Handle(*mut c_void);
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 struct Atom(i16);
 type WndProc = unsafe extern "system" fn(Handle, c_uint, usize, usize) -> usize;
 #[repr(C)]
@@ -308,6 +308,9 @@ impl Window {
 
         unsafe {
             let instance = get_module_handle(std::ptr::null());
+            if instance == Handle::default() {
+                return Err(WindowCreateError::NullModuleHandle);
+            }
 
             let wnd_class = WndClass {
                 style: 0,
@@ -321,7 +324,9 @@ impl Window {
                 menu_name: std::ptr::null(),
                 class_name: WINDOW_CLASS.as_ptr(),
             };
-            register_class(&raw const wnd_class);
+            if register_class(&raw const wnd_class) == Atom::default() {
+                return Err(WindowCreateError::ZeroWndClass);
+            }
 
             let wnd = create_window_ex(
                 0,
@@ -337,14 +342,30 @@ impl Window {
                 instance,
                 std::ptr::null_mut(),
             );
+            if wnd == Handle::default() {
+                return Err(WindowCreateError::NullWnd);
+            }
             show_window(wnd, 1);
 
             let dc = get_dc(wnd);
+            if dc == Handle::default() {
+                return Err(WindowCreateError::NullDC);
+            }
             let format = choose_pixel_format(dc, &raw const PIXEL_FORMAT);
-            set_pixel_format(dc, format, &raw const PIXEL_FORMAT);
+            if format == 0 {
+                return Err(WindowCreateError::ZeroPixelFormat);
+            }
+            if set_pixel_format(dc, format, &raw const PIXEL_FORMAT) == 0 {
+                return Err(WindowCreateError::SetPixelFormat);
+            }
 
             let glrc = wgl_create_context(dc);
-            wgl_make_current(dc, glrc);
+            if glrc == Handle::default() {
+                return Err(WindowCreateError::NullGlrc);
+            }
+            if wgl_make_current(dc, glrc) == 0 {
+                return Err(WindowCreateError::MakeCurrent);
+            }
 
             Ok(Self { wnd, dc })
         }
@@ -373,7 +394,9 @@ impl Window {
     pub fn check_events(&self) -> Result<(), EventCheckError> {
         let mut msg = MaybeUninit::uninit();
         unsafe {
-            get_message(msg.as_mut_ptr(), self.wnd, 0, 0);
+            if get_message(msg.as_mut_ptr(), self.wnd, 0, 0) == -1 {
+                return Err(EventCheckError);
+            }
             dispatch_message(msg.as_mut_ptr());
         }
         Ok(())
@@ -406,11 +429,29 @@ impl Window {
 }
 
 #[derive(Debug)]
-pub enum WindowCreateError {}
+pub enum WindowCreateError {
+    NullModuleHandle,
+    ZeroWndClass,
+    NullWnd,
+    NullDC,
+    ZeroPixelFormat,
+    SetPixelFormat,
+    NullGlrc,
+    MakeCurrent,
+}
 
 impl Display for WindowCreateError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match *self {}
+        f.write_str(match self {
+            Self::NullModuleHandle => "GetModuleHandle returned null",
+            Self::ZeroWndClass => "RegisterClass returned zero",
+            Self::NullWnd => "CreateWindow returned null",
+            Self::NullDC => "GetDC returned null",
+            Self::ZeroPixelFormat => "GetPixelFormat returned zero",
+            Self::SetPixelFormat => "SetPixelFormat returned false",
+            Self::NullGlrc => "wglCreateContext returned null",
+            Self::MakeCurrent => "wglMakeCurrent returned false",
+        })
     }
 }
 
@@ -428,11 +469,11 @@ impl Display for BufferSwapError {
 impl Error for BufferSwapError {}
 
 #[derive(Debug)]
-pub enum EventCheckError {}
+pub struct EventCheckError;
 
 impl Display for EventCheckError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match *self {}
+        f.write_str("GetMessage returned -1")
     }
 }
 
